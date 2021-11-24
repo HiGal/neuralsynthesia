@@ -14,12 +14,12 @@ from feed_forward_vqgan_clip.main import CLIP_DIM, clamp_with_grad, synth
 from src.gpt3 import load_tokenizer_and_model, generate
 
 
-def load_vqgan_model(device="cuda:0"):
-    model_path = "../feed_forward_vqgan_clip/cc12m_32x1024_mlp_mixer.th"
+def load_vqgan_model(model_path, device="cuda:0"):
     net = torch.load(model_path).to(device)
     config = net.config
-    vqgan_config = "../feed_forward_vqgan_clip/vqgan_imagenet_f16_16384.yaml"
-    vqgan_checkpoint = "../feed_forward_vqgan_clip/vqgan_imagenet_f16_16384.ckpt"
+    root = "/".join(model_path.split("/")[:-1])
+    vqgan_config = f"{root}/vqgan_imagenet_f16_16384.yaml"
+    vqgan_checkpoint = f"{root}/vqgan_imagenet_f16_16384.ckpt"
     model = _load_vqgan_model(vqgan_config, vqgan_checkpoint).to(device)
     return model, net, config
 
