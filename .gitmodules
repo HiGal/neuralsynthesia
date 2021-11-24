@@ -1,0 +1,3 @@
+[submodule "feed_forward_vqgan_clip"]
+	path = feed_forward_vqgan_clip
+	url = https://github.com/mehdidc/feed_forward_vqgan_clip
