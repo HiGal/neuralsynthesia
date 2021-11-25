@@ -34,22 +34,12 @@ export default {
 
       var requestOptions = {
         method: "POST",
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Authorization": `Bearer ${process.env.VUE_APP_IAM_TOKEN}`
-        },
-        mode: "cors",
         body: data
       };
       console.log(requestOptions);
-      fetch("https://stt.api.cloud.yandex.net/speech/v1/stt:recognize?topic=general&lang=ru-RU&profanityFilter=true&folderId=b1gn0q0hhm383i8vomic",
-          requestOptions).then(
-          response => response.json()
-      ).then(
-          json => {
-            this.text = json.result
-          }
-      );
+      fetch("http://localhost:5000/get_audio", requestOptions)
+          .then(a=>a.json())
+          .then(data => {this.text = data.result});
       this.record = window.URL.createObjectURL(data)
     }
   }
