@@ -73,7 +73,7 @@ def generate_video(sentences, output_path, vqgan_model, mlp_mixer, perceptor, ba
     xr_list = torch.cat(xr_list).permute(0, 2, 3, 1).numpy() * 255
     xr_list = xr_list.astype(np.uint8)
 
-    out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'MP4V'), 30, (256, 256))
+    out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'vp80'), 30, (256, 256))
     for img in tqdm(xr_list):
         out.write(img)
     out.release()
