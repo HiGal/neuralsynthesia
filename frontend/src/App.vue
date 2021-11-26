@@ -1,48 +1,39 @@
 <template>
   <div id="app">
+    <Background></Background>
+
     <HomePage></HomePage>
-    <VueRecordAudio @result="onResult"/>
-    <div class="audio-player" v-if="record">
-      <AudioPlayer v-if="record" v-bind:record="record"></AudioPlayer>
-    </div>
-    <h1>{{ text }}</h1>
+
   </div>
 </template>
 
 <script>
 import HomePage from "./components/HomePage";
+import Background from "./components/Background";
+import Loader from "./components/Loader";
 import AudioPlayer from "./components/AudioPlayer";
+import VideoPlayer from "./components/VideoPlayer";
+import VueCoreVideoPlayer from 'vue-core-video-player'
 import VueRecord from "@codekraft-studio/vue-record";
+import Particles from "particles.vue"
 import Vue from "vue";
 
-Vue.use(VueRecord)
+Vue.use(VueRecord);
+Vue.use(Particles);
+Vue.use(VueCoreVideoPlayer)
+
 
 export default {
   name: 'App',
-  data() {
-    return {
-      record: {},
-      text: ""
-    }
-  },
+
   components: {
     HomePage,
-    AudioPlayer
+    AudioPlayer,
+    Background,
+    Loader,
+    VideoPlayer
   },
-  methods: {
-    onResult(data) {
 
-      var requestOptions = {
-        method: "POST",
-        body: data
-      };
-      console.log(requestOptions);
-      fetch("http://localhost:5000/get_audio", requestOptions)
-          .then(a=>a.json())
-          .then(data => {this.text = data.result});
-      this.record = window.URL.createObjectURL(data)
-    }
-  }
 }
 </script>
 
