@@ -6,8 +6,9 @@
     <Loader v-if="loading"/>
     <h1 v-if="text">
       {{ text }}
-      <VideoPlayer v-bind:video_path="video_path"/>
+      <VideoPlayer :video_path="video_path"/>
     </h1>
+
 
   </div>
 </template>
@@ -32,7 +33,7 @@ export default {
   },
   methods: {
     onResult(data) {
-      this.loading=true
+      this.loading = true
       var requestOptions = {
         method: "POST",
         body: data

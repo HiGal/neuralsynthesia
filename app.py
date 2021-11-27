@@ -1,5 +1,5 @@
 import sys
-from flask import Flask, redirect, request, url_for, jsonify
+from flask import Flask, redirect, request, url_for, jsonify, send_from_directory
 import requests
 from flask_cors import CORS
 import os
@@ -64,7 +64,11 @@ def generate():
     with open(f"results/{start_story}/{start_story}.txt", "w") as f:
         f.write(generated_sentence)
     generate_video(sentences, f"results/{start_story}/{start_story}.webm", vqgan_model, mlp_mixer, perceptor)
-    return jsonify({"result": generated_sentence, "video_path": f"../../../results/{start_story}/{start_story}.webm"})
+    return jsonify({"result": generated_sentence, "video_path": f"{start_story}"})
+
+@app.route("/static/<file>")
+def return_static(file):
+    return send_from_directory("results", f"{file}/{file}.webm")
 
 
 if __name__ == '__main__':

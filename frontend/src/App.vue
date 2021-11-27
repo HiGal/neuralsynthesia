@@ -12,7 +12,7 @@ import HomePage from "./components/HomePage";
 import Background from "./components/Background";
 import Loader from "./components/Loader";
 import AudioPlayer from "./components/AudioPlayer";
-import VideoPlayer from "./components/VideoPlayer";
+// import VideoPlayer from "./components/VideoPlayer";
 import VueCoreVideoPlayer from 'vue-core-video-player'
 import VueRecord from "@codekraft-studio/vue-record";
 import Particles from "particles.vue"
@@ -31,7 +31,7 @@ export default {
     AudioPlayer,
     Background,
     Loader,
-    VideoPlayer
+    // VideoPlayer
   },
 
 }

@@ -1,6 +1,6 @@
 <template>
   <div>
-    <video controls loop width="50%">
+    <video controls loop width="512">
       <source :src=video_path type="video/webm">
     </video>
   </div>
@@ -13,7 +13,10 @@ export default {
       type: String
     }
   },
-  name: "VideoPlayer"
+  created() {
+    console.log(this.video_path)
+    this.video_path = "http://localhost:5000/static/" + this.video_path
+  }
 }
 </script>
 

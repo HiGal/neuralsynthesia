@@ -9,7 +9,9 @@
   "dependencies": {
     "@codekraft-studio/vue-record": "^0.0.3",
     "core-js": "^3.6.5",
-    "vue": "^2.6.14"
+    "particles.vue": "^2.20.4",
+    "vue": "^2.6.14",
+    "vue-core-video-player": "^0.2.0"
   },
   "devDependencies": {
     "@vue/cli-plugin-babel": "~4.5.0",
