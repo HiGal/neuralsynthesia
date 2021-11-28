@@ -4,11 +4,10 @@ import requests
 from flask_cors import CORS
 import os
 import random
-import urllib.request
-import json
 
 sys.path.append("feed_forward_vqgan_clip")
-from src.vqgan_clip import load_gpt_model, load_vqgan_model, load_perceptor, generate_sentence, generate_video
+from src.vqgan_clip import load_gpt_model, load_vqgan_model, load_perceptor, generate_sentence
+from src.vqgan_clip import generate_video as _generate_video
 
 app = Flask(__name__)
 app.config.from_object(__name__)
@@ -52,23 +51,45 @@ def get_audio():
                                  }, data=data)
 
     decodedData = responseData.json()
-    return redirect(url_for("generate", start_story=decodedData["result"]))
+    return redirect(url_for("generate_text", start_story=decodedData["result"]))
 
 
-@app.route("/generate")
-def generate():
+@app.route("/generate_text")
+def generate_text():
     start_story = request.args["start_story"]
-    print(start_story)
     sentences, generated_sentence = generate_sentence(start_story, gpt3, tokenizer, n_grams=6)
     os.makedirs(f"results/{start_story}", exist_ok=True)
     with open(f"results/{start_story}/{start_story}.txt", "w") as f:
         f.write(generated_sentence)
-    generate_video(sentences, f"results/{start_story}/{start_story}.webm", vqgan_model, mlp_mixer, perceptor)
-    return jsonify({"result": generated_sentence, "video_path": f"{start_story}"})
+    generated_speech = requests.post("https://tts.api.cloud.yandex.net/speech/v1/tts:synthesize",
+                                 params={
+                                     "text": generated_sentence,
+                                     "folderId": os.environ.get('FOLDER_ID'),
+                                     "lang": "ru-RU",
+                                     "voice": "ermil",
+                                     "emotion": "neutral"
+                                 },
+                                 headers={
+                                     "Authorization": f"Bearer {os.environ.get('IAM_TOKEN')}",
+                                 })
+    with open(f"results/{start_story}/{start_story}.ogg", "wb") as f:
+        f.write(generated_speech.content)
+    return jsonify({"result": generated_sentence, "start_story": f"{start_story}", "sentences": sentences})
+
+
+@app.route("/generate_video", methods=["POST"])
+def generate_video():
+    data = request.json
+    sentences = data['sentences']
+    start_story = data['start_story']
+    _generate_video(sentences, f"results/{start_story}/{start_story}.webm", vqgan_model, mlp_mixer, perceptor)
+    return jsonify({"video_path": f"{start_story}"})
+
 
 @app.route("/static/<file>")
 def return_static(file):
-    return send_from_directory("results", f"{file}/{file}.webm")
+    folder = file.split(".")[0]
+    return send_from_directory("results", f"{folder}/{file}")
 
 
 if __name__ == '__main__':

@@ -30,3 +30,4 @@ def handle_srt(path, sr=22050):
     times.append(end)
     samples = librosa.time_to_samples(times, sr)
     return sents, samples, times
+
