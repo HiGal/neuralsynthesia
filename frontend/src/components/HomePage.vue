@@ -15,7 +15,7 @@
               </div>
             </h4>
             <h5 class="text-white" v-else-if="is_text_generated">
-              <i>{{ text }}</i>
+              <p class="text-left "><i>{{ text }} ...</i></p>
               <p class="text-right my-3"><i>—— Нейрописатель Неизвестный, 2021</i></p>
               <AudioPlayer :record="start_story"></AudioPlayer>
             </h5>
@@ -40,7 +40,7 @@
       </b-row>
 
     </div>
-    <div class="container">
+    <div class="container" v-if="!loading_video && !loading_text">
       <div class="d-flex justify-content-center">
         <h2 class="text-white">Удерживайте для записи</h2>
       </div>
@@ -87,8 +87,6 @@ export default {
       this.loading_text = true
       this.is_video_generated = false
       this.is_text_generated = false
-      SharedStore.data.audioEnded = false
-      this.audioEnded = false
       var requestOptions = {
         method: "POST",
         body: data

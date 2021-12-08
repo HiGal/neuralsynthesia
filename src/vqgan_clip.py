@@ -30,7 +30,7 @@ def load_gpt_model(model_path):
 
 
 def generate_sentence(start_phrase, gpt3, tokenizer, n_grams=4):
-    generated_sentence = generate(gpt3, tokenizer, start_phrase, num_beams=5, max_length=180)[0]
+    generated_sentence = generate(gpt3, tokenizer, start_phrase, num_beams=5, max_length=150)[0]
     translated_sentence = translators.google(generated_sentence, from_language='ru', to_language='en')
     words = re.findall("\w+", translated_sentence)
     sentences = []
