@@ -28,6 +28,10 @@ def random_video():
 
 @app.route("/get_audio", methods=["POST"])
 def get_audio():
+    os.environ['IAM_TOKEN'] = requests.post("https://iam.api.cloud.yandex.net/iam/v1/tokens",
+                                            json={
+                                                "yandexPassportOauthToken": os.environ.get('OAUTH')
+                                            }).json()['iamToken']
     print(os.environ.get('IAM_TOKEN'))
     print(os.environ.get('FOLDER_ID'))
     data = request.data
@@ -62,16 +66,16 @@ def generate_text():
     with open(f"results/{start_story}/{start_story}.txt", "w") as f:
         f.write(generated_sentence)
     generated_speech = requests.post("https://tts.api.cloud.yandex.net/speech/v1/tts:synthesize",
-                                 params={
-                                     "text": generated_sentence,
-                                     "folderId": os.environ.get('FOLDER_ID'),
-                                     "lang": "ru-RU",
-                                     "voice": "ermil",
-                                     "emotion": "neutral"
-                                 },
-                                 headers={
-                                     "Authorization": f"Bearer {os.environ.get('IAM_TOKEN')}",
-                                 })
+                                     params={
+                                         "text": generated_sentence,
+                                         "folderId": os.environ.get('FOLDER_ID'),
+                                         "lang": "ru-RU",
+                                         "voice": "ermil",
+                                         "emotion": "neutral"
+                                     },
+                                     headers={
+                                         "Authorization": f"Bearer {os.environ.get('IAM_TOKEN')}",
+                                     })
     with open(f"results/{start_story}/{start_story}.ogg", "wb") as f:
         f.write(generated_speech.content)
     return jsonify({"result": generated_sentence, "start_story": f"{start_story}", "sentences": sentences})
@@ -86,9 +90,19 @@ def generate_video():
     return jsonify({"video_path": f"{start_story}"})
 
 
+@app.route("/static/get_random")
+def return_random_text():
+    folders = os.listdir("results")
+    print({"folder": random.choice(folders)})
+    return jsonify({"folder": random.choice(folders)})
+
+
 @app.route("/static/<file>")
 def return_static(file):
-    folder = file.split(".")[0]
+    folder, format = file.split(".")
+    if format == "txt":
+        with open(f"results/{folder}/{file}", "r") as f:
+            return jsonify({"text": f.read()})
     return send_from_directory("results", f"{folder}/{file}")
 
 
