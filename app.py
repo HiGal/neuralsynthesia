@@ -110,4 +110,4 @@ if __name__ == '__main__':
     tokenizer, gpt3 = load_gpt_model("rugpt3small_based_on_gpt2")
     vqgan_model, mlp_mixer, _ = load_vqgan_model("feed_forward_vqgan_clip/cc12m_32x1024_mlp_mixer.th")
     perceptor = load_perceptor()
-    app.run(load_dotenv=True)
+    app.run(load_dotenv=True, host="0.0.0.0")
