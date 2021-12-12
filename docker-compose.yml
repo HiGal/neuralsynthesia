@@ -3,16 +3,16 @@ services:
     build: frontend
     restart: always
     ports:
-      - 8888:8080
-    networks:
-      - global
+      - 80:8080
 
   backend:
     build: .
     ports:
       - "5000:5000"
     volumes:
-      - /home/farit/PycharmProjects/sound2art-clip/results:/app/results
+      - /home/artcode/PycharmProjects/neuralsynthesia/results:/app/results
+      - /home/artcode/PycharmProjects/neuralsynthesia/feed_forward_vqgan_clip:/app/feed_forward_vqgan_clip
+      - /home/artcode/PycharmProjects/neuralsynthesia/rugpt3small_based_on_gpt2:/app/rugpt3small_based_on_gpt2
     deploy:
       resources:
         reservations:
@@ -20,14 +20,7 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [ "gpu" ]
-    networks:
-      - global
 
 
 volumes:
   results:
-
-
-networks:
-  global:
-    external: true

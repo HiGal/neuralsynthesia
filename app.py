@@ -28,62 +28,70 @@ def random_video():
 
 @app.route("/get_audio", methods=["POST"])
 def get_audio():
-    os.environ['IAM_TOKEN'] = requests.post("https://iam.api.cloud.yandex.net/iam/v1/tokens",
-                                            json={
-                                                "yandexPassportOauthToken": os.environ.get('OAUTH')
-                                            }).json()['iamToken']
-    print(os.environ.get('IAM_TOKEN'))
-    print(os.environ.get('FOLDER_ID'))
-    data = request.data
-    with open("voice.opus", "wb") as f:
-        f.write(data)
+    try:
+        os.environ['IAM_TOKEN'] = requests.post("https://iam.api.cloud.yandex.net/iam/v1/tokens",
+                                                json={
+                                                    "yandexPassportOauthToken": os.environ.get('OAUTH')
+                                                }).json()['iamToken']
+        data = request.data
+        with open("voice.ogg", "wb") as f:
+            f.write(data)
 
-    os.system("ffmpeg -i voice.opus -f wav - | oggenc -o voice.ogg -")
+        os.system("ffmpeg -i voice.ogg -f wav - | oggenc -o voice.ogg -")
 
-    with open("voice.ogg", "rb") as f:
-        data = f.read()
-    responseData = requests.post("https://stt.api.cloud.yandex.net/speech/v1/stt:recognize",
-                                 params={
-                                     "topic": "general",
-                                     "folderId": os.environ.get('FOLDER_ID'),
-                                     "lang": "ru-RU",
-                                     "profanityFilter": True
-                                 },
-                                 headers={
-                                     "Authorization": f"Bearer {os.environ.get('IAM_TOKEN')}",
-                                     "Content-Type": "audio/ogg"
-                                 }, data=data)
+        with open("voice.ogg", "rb") as f:
+            data = f.read()
+        responseData = requests.post("https://stt.api.cloud.yandex.net/speech/v1/stt:recognize",
+                                     params={
+                                         "topic": "general",
+                                         "folderId": os.environ.get('FOLDER_ID'),
+                                         "lang": "ru-RU",
+                                         "profanityFilter": True
+                                     },
+                                     headers={
+                                         "Authorization": f"Bearer {os.environ.get('IAM_TOKEN')}",
+                                         "Content-Type": "audio/ogg"
+                                     }, data=data)
 
-    decodedData = responseData.json()
+        decodedData = responseData.json()
+        if decodedData == '':
+            raise Exception
+    except Exception:
+        return jsonify({'result': "Error"})
     return redirect(url_for("generate_text", start_story=decodedData["result"]))
 
 
 @app.route("/generate_text")
 def generate_text():
-    start_story = request.args["start_story"]
-    sentences, generated_sentence = generate_sentence(start_story, gpt3, tokenizer, n_grams=6)
-    os.makedirs(f"results/{start_story}", exist_ok=True)
-    with open(f"results/{start_story}/{start_story}.txt", "w") as f:
-        f.write(generated_sentence)
-    generated_speech = requests.post("https://tts.api.cloud.yandex.net/speech/v1/tts:synthesize",
-                                     params={
-                                         "text": generated_sentence,
-                                         "folderId": os.environ.get('FOLDER_ID'),
-                                         "lang": "ru-RU",
-                                         "voice": "ermil",
-                                         "emotion": "neutral"
-                                     },
-                                     headers={
-                                         "Authorization": f"Bearer {os.environ.get('IAM_TOKEN')}",
-                                     })
-    with open(f"results/{start_story}/{start_story}.ogg", "wb") as f:
-        f.write(generated_speech.content)
+    try:
+        start_story = request.args["start_story"]
+        sentences, generated_sentence = generate_sentence(start_story, gpt3, tokenizer, n_grams=6)
+        os.makedirs(f"results/{start_story}", exist_ok=True)
+        with open(f"results/{start_story}/{start_story}.txt", "w") as f:
+            f.write(generated_sentence)
+        generated_speech = requests.post("https://tts.api.cloud.yandex.net/speech/v1/tts:synthesize",
+                                         params={
+                                             "text": generated_sentence,
+                                             "folderId": os.environ.get('FOLDER_ID'),
+                                             "lang": "ru-RU",
+                                             "voice": "ermil",
+                                             "emotion": "neutral"
+                                         },
+                                         headers={
+                                             "Authorization": f"Bearer {os.environ.get('IAM_TOKEN')}",
+                                         })
+        with open(f"results/{start_story}/{start_story}.ogg", "wb") as f:
+            f.write(generated_speech.content)
+    except Exception:
+        return jsonify({'result': "Error"})
     return jsonify({"result": generated_sentence, "start_story": f"{start_story}", "sentences": sentences})
 
 
 @app.route("/generate_video", methods=["POST"])
 def generate_video():
     data = request.json
+    if data is None:
+        return jsonify({"video_path": "Error"})
     sentences = data['sentences']
     start_story = data['start_story']
     _generate_video(sentences, f"results/{start_story}/{start_story}.webm", vqgan_model, mlp_mixer, perceptor)

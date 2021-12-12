@@ -42,7 +42,8 @@
     </div>
     <div class="container" v-if="!loading_video && !loading_text">
       <div class="d-flex justify-content-center">
-        <h2 class="text-white">Удерживайте для записи</h2>
+        <h2 class="text-white" v-if="!is_exception">Начните рассказ</h2>
+        <h2 class="text-white" v-else>Речь не распознана. Повторите еще раз</h2>
       </div>
       <div class="d-flex justify-content-center">
         <VueRecordAudio @result="onResult"/>
@@ -57,6 +58,9 @@ import VideoPlayer from "./VideoPlayer";
 import AudioPlayer from "@/components/AudioPlayer";
 import Jumbotron from "@/components/Jumbotron";
 // import RandomContent from "@/components/RandomContent";
+var vad = require("../scripts/vad")
+var audioContext;
+var blob;
 
 export default {
   name: "HomePage",
@@ -73,7 +77,9 @@ export default {
       loading_video: false,
       is_text_generated: false,
       is_video_generated: false,
-
+      is_listen: null,
+      listen_functions: null,
+      is_exception: false
     }
   },
   components: {
@@ -83,8 +89,39 @@ export default {
     VideoPlayer
   },
   methods: {
+    requestMic() {
+      try {
+        window.AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioContext = new AudioContext();
+        audioContext.resume()
+        navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
+        navigator.getUserMedia({audio: true}, this.startUserMedia, this.handleMicConnectError);
+      } catch (e) {
+        this.handleUserMediaError();
+      }
+    },
+    handleUserMediaError() {
+      console.warn('Mic input is not supported by the browser.');
+    },
+    handleMicConnectError() {
+      console.warn('Could not connect microphone. Possible rejected by the user or is blocked by the browser.');
+    },
+    startUserMedia(stream) {
+      audioContext.resume()
+      var options = {
+        fftSize: 2048,
+        bufferLen: 1024,
+        smoothingTimeConstant: 0.6,
+        minCaptureFreq: 100,         // in Hz
+        maxCaptureFreq: 255,        // in Hz
+        noiseCaptureDuration: 2000, // in ms
+        minNoiseLevel: 0.6,         // from 0 to 1
+        maxNoiseLevel: 1.0,         // from 0 to 1
+        avgNoiseMultiplier: 1.2
+      };
+      this.listen_functions = vad(audioContext, stream, options, this.onResult)
+    },
     onResult(data) {
-      this.loading_text = true
       this.is_video_generated = false
       this.is_text_generated = false
       var requestOptions = {
@@ -92,58 +129,63 @@ export default {
         body: data
       };
       console.log(requestOptions);
-      fetch("http://localhost:5000/get_audio", requestOptions)
-          .then(response => response.json())
-          .then(data => {
-            this.text = data.result
-            this.start_story = data.start_story
-            this.sentences = data.sentences
-            this.loading_text = false
-            this.loading_video = true
-            this.is_text_generated = true
-          })
-          .then(() => {
-                var requestOptions = {
-                  method: "POST",
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                  },
-                  body: JSON.stringify({
-                    "sentences": this.sentences,
-                    "start_story": this.start_story
-                  })
-                }
-                console.log(requestOptions)
-                fetch("http://localhost:5000/generate_video", requestOptions)
-                    .then(response => response.json())
-                    .then(data => {
-                      this.video_path = data.video_path
-
-                      this.is_video_generated = true
-                      this.loading_video = false
-
-                    })
+      if (this.loading_text === false && this.loading_video === false) {
+        this.is_exception = false
+        this.loading_text = true
+        fetch("http://localhost:5000/get_audio", requestOptions)
+            .then(response => response.json())
+            .then(data => {
+              if (data.result === "Error") {
+                this.is_exception = true
+                this.loading_text = false
+                this.start_story = null
+              } else {
+                this.listen_functions.disconnect()
+                this.text = data.result
+                this.start_story = data.start_story
+                this.sentences = data.sentences
+                this.loading_text = false
+                this.loading_video = true
+                this.is_text_generated = true
               }
-          )
+            })
+            .then(() => {
+                  var requestOptions = {
+                    method: "POST",
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                      "sentences": this.sentences,
+                      "start_story": this.start_story
+                    })
+                  }
+                  console.log(requestOptions)
+                  fetch("http://localhost:5000/generate_video", requestOptions)
+                      .then(response => response.json())
+                      .then(data => {
+                        if (data.video_path === "Error") {
+                          this.is_exception = true
+                        } else {
+                          this.is_exception = false
+                          this.video_path = data.video_path
+
+                          this.is_video_generated = true
+                          this.loading_video = false
+                          this.listen_functions.connect()
+                        }
+                      })
+                }
+            )
+      }
     },
 
-  },
+  }
+  ,
   created() {
-    // this.random_data_loaded = false
-    // var requestOptions = {
-    //   headers: {
-    //     'Accept': 'application/json'
-    //   }
-    // }
-    // fetch("http://localhost:5000/static/get_random", requestOptions)
-    //     .then(response => response.json())
-    //     .then(data => {
-    //
-    //       this.random_data = data.folder;
-    //       this.random_data_loaded = true;
-    //       console.log(this.random_data)
-    //     })
+    this.is_listen = true
+    this.requestMic();
   }
 
 }
