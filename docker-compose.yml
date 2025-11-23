@@ -1,33 +1,36 @@
+version: '3.8'
+
 services:
   frontend:
     build: frontend
     restart: always
     ports:
-      - 8888:8080
+      - "8888:8080"
     networks:
-      - global
+      - neuralsynthesia
+    depends_on:
+      - backend
 
   backend:
     build: .
+    restart: always
     ports:
       - "5000:5000"
     volumes:
-      - /home/farit/PycharmProjects/sound2art-clip/results:/app/results
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [ "gpu" ]
+      - ./results:/app/results
+    environment:
+      - NEBIUS_API_KEY=${NEBIUS_API_KEY}
+      - NEBIUS_BASE_URL=${NEBIUS_BASE_URL:-https://api.studio.nebius.ai/v1}
+      - OAUTH=${OAUTH}
+      - FOLDER_ID=${FOLDER_ID}
+    env_file:
+      - .env
     networks:
-      - global
-
+      - neuralsynthesia
 
 volumes:
   results:
 
-
 networks:
-  global:
-    external: true
+  neuralsynthesia:
+    driver: bridge

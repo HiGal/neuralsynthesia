@@ -1,13 +1,13 @@
-import sys
 from flask import Flask, redirect, request, url_for, jsonify, send_from_directory
 import requests
 from flask_cors import CORS
 import os
 import random
+import json
+from pathlib import Path
 
-sys.path.append("feed_forward_vqgan_clip")
-from src.vqgan_clip import load_gpt_model, load_vqgan_model, load_perceptor, generate_sentence
-from src.vqgan_clip import generate_video as _generate_video
+from src.llm_generator import LLMStoryGenerator
+from src.image_generator import StorybookGenerator
 
 app = Flask(__name__)
 app.config.from_object(__name__)
@@ -21,9 +21,12 @@ def home():
 
 
 @app.route("/random")
-def random_video():
-    video = random.choice(os.listdir("results/"))
-    return video
+def random_storybook():
+    """Get a random storybook."""
+    storybooks = [d for d in os.listdir("results/") if os.path.isdir(f"results/{d}")]
+    if not storybooks:
+        return jsonify({"error": "No storybooks available"}), 404
+    return jsonify({"folder": random.choice(storybooks)})
 
 
 @app.route("/get_audio", methods=["POST"])
@@ -60,34 +63,100 @@ def get_audio():
 
 @app.route("/generate_text")
 def generate_text():
+    """Generate a story from the starting phrase."""
     start_story = request.args["start_story"]
-    sentences, generated_sentence = generate_sentence(start_story, gpt3, tokenizer, n_grams=6)
-    os.makedirs(f"results/{start_story}", exist_ok=True)
-    with open(f"results/{start_story}/{start_story}.txt", "w") as f:
-        f.write(generated_sentence)
-    generated_speech = requests.post("https://tts.api.cloud.yandex.net/speech/v1/tts:synthesize",
-                                     params={
-                                         "text": generated_sentence,
-                                         "folderId": os.environ.get('FOLDER_ID'),
-                                         "lang": "ru-RU",
-                                         "voice": "ermil",
-                                         "emotion": "neutral"
-                                     },
-                                     headers={
-                                         "Authorization": f"Bearer {os.environ.get('IAM_TOKEN')}",
-                                     })
-    with open(f"results/{start_story}/{start_story}.ogg", "wb") as f:
-        f.write(generated_speech.content)
-    return jsonify({"result": generated_sentence, "start_story": f"{start_story}", "sentences": sentences})
+
+    try:
+        # Generate story using modern LLM
+        story = story_generator.generate_story(start_story, max_tokens=500)
+
+        # Split into scenes for illustration
+        scenes = story_generator.split_into_scenes(story, sentences_per_scene=2)
+
+        # Create output directory
+        story_dir = f"results/{start_story}"
+        os.makedirs(story_dir, exist_ok=True)
+
+        # Save the full story
+        with open(f"{story_dir}/story.txt", "w", encoding="utf-8") as f:
+            f.write(story)
+
+        # Save scenes as JSON
+        with open(f"{story_dir}/scenes.json", "w", encoding="utf-8") as f:
+            json.dump(scenes, f, ensure_ascii=False, indent=2)
+
+        # Generate speech (keep existing Yandex TTS)
+        try:
+            generated_speech = requests.post(
+                "https://tts.api.cloud.yandex.net/speech/v1/tts:synthesize",
+                params={
+                    "text": story,
+                    "folderId": os.environ.get('FOLDER_ID'),
+                    "lang": "ru-RU",
+                    "voice": "ermil",
+                    "emotion": "neutral"
+                },
+                headers={
+                    "Authorization": f"Bearer {os.environ.get('IAM_TOKEN')}",
+                }
+            )
+            with open(f"{story_dir}/story.ogg", "wb") as f:
+                f.write(generated_speech.content)
+        except Exception as e:
+            print(f"Speech synthesis failed: {e}")
+
+        return jsonify({
+            "result": story,
+            "start_story": start_story,
+            "scenes": scenes,
+            "num_scenes": len(scenes)
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
-@app.route("/generate_video", methods=["POST"])
-def generate_video():
+@app.route("/generate_storybook", methods=["POST"])
+def generate_storybook():
+    """Generate illustrated storybook pages."""
     data = request.json
-    sentences = data['sentences']
-    start_story = data['start_story']
-    _generate_video(sentences, f"results/{start_story}/{start_story}.webm", vqgan_model, mlp_mixer, perceptor)
-    return jsonify({"video_path": f"{start_story}"})
+    scenes = data.get('scenes', [])
+    start_story = data.get('start_story', 'untitled')
+
+    if not scenes:
+        return jsonify({"error": "No scenes provided"}), 400
+
+    try:
+        story_dir = f"results/{start_story}"
+
+        # Generate illustrations for each scene
+        storybook_pages = storybook_generator.create_storybook(
+            scenes=scenes,
+            output_dir=story_dir,
+            story_title=start_story,
+            translate_to_english=True
+        )
+
+        # Create HTML storybook
+        html_path = f"{story_dir}/storybook.html"
+        storybook_generator.create_html_storybook(
+            storybook_pages=storybook_pages,
+            story_title=start_story,
+            output_path=html_path
+        )
+
+        # Save storybook metadata
+        with open(f"{story_dir}/storybook.json", "w", encoding="utf-8") as f:
+            json.dump(storybook_pages, f, ensure_ascii=False, indent=2)
+
+        return jsonify({
+            "storybook_path": start_story,
+            "pages": storybook_pages,
+            "html_path": f"{start_story}/storybook.html"
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/static/get_random")
@@ -107,7 +176,15 @@ def return_static(file):
 
 
 if __name__ == '__main__':
-    tokenizer, gpt3 = load_gpt_model("rugpt3small_based_on_gpt2")
-    vqgan_model, mlp_mixer, _ = load_vqgan_model("feed_forward_vqgan_clip/cc12m_32x1024_mlp_mixer.th")
-    perceptor = load_perceptor()
-    app.run(load_dotenv=True, host="0.0.0.0")
+    # Initialize generators
+    story_generator = LLMStoryGenerator()
+    storybook_generator = StorybookGenerator()
+
+    # Create results directory if it doesn't exist
+    Path("results").mkdir(exist_ok=True)
+
+    print("Starting NeuralSynthesia server...")
+    print("Story Generator: LLama-3.3-70B via Nebius")
+    print("Image Generator: Flux Schnell via Nebius")
+
+    app.run(host="0.0.0.0", port=5000, debug=True)

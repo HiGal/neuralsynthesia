@@ -1,2 +1,39 @@
+# Git
 .git
-results
+.gitignore
+.gitmodules
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Project specific
+results/
+feed_forward_vqgan_clip/
+*.ckpt
+*.th
+*.pth
+
+# Documentation
+README.md
+docs/
+
+# Logs
+*.log
