@@ -1,22 +1,19 @@
 {
-  "name": "frontend",
-  "version": "0.1.0",
+  "name": "neuralsynthesia-frontend",
+  "version": "2.0.0",
   "private": true,
   "scripts": {
-    "serve": "vue-cli-service serve",
-    "build": "vue-cli-service build"
+    "serve": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
-    "@codekraft-studio/vue-record": "^0.0.3",
-    "bootstrap-vue": "^2.21.2",
-    "core-js": "^3.6.5",
-    "particles.vue": "^2.20.4",
-    "vue": "^2.6.14",
-    "vue-core-video-player": "^0.2.0"
+    "vue": "^3.4.0",
+    "pinia": "^2.1.7",
+    "axios": "^1.6.0"
   },
   "devDependencies": {
-    "@vue/cli-plugin-babel": "~4.5.0",
-    "@vue/cli-service": "~4.5.0",
-    "vue-template-compiler": "^2.6.11"
+    "@vitejs/plugin-vue": "^5.0.0",
+    "vite": "^5.0.0"
   }
 }
